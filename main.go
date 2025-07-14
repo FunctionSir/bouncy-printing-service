@@ -2,7 +2,7 @@
  * @Author: FunctionSir
  * @License: AGPLv3
  * @Date: 2025-07-10 20:18:43
- * @LastEditTime: 2025-07-14 23:00:37
+ * @LastEditTime: 2025-07-14 23:20:55
  * @LastEditors: FunctionSir
  * @Description: -
  * @FilePath: /bouncy-printing-service/main.go
@@ -69,6 +69,7 @@ func loadConf() readini.Sec {
 	if !sec.HasKey("Dest") || sec["Dest"] == "" {
 		sec["Dest"] = DEFAULT_DEST
 	}
+	sec["ManagedDir"] = strings.TrimRight(sec["ManagedDir"], "/")
 	return sec
 }
 
@@ -166,10 +167,10 @@ func main() {
 				Check(watcher.Add(Options["ManagedDir"]))
 				log.Println("New task:", thisTask)
 				go doTask(thisTask)
-			} else if event.Op == fsnotify.Remove && event.Name == Options["ManagedDir"] {
-				Check(watcher.Remove(Options["ManagedDir"]))
+			} else if (event.Op == fsnotify.Rename || event.Op == fsnotify.Remove) && event.Name == Options["ManagedDir"] {
 				Check(os.Mkdir(Options["ManagedDir"], os.ModePerm))
 				Check(watcher.Add(Options["ManagedDir"]))
+				log.Println("Since ManagedDir was removed or renamed or moved, a new one was created and added to watch list")
 			}
 		case err, ok := <-watcher.Errors:
 			if !ok {
