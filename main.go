@@ -2,7 +2,7 @@
  * @Author: FunctionSir
  * @License: AGPLv3
  * @Date: 2025-07-10 20:18:43
- * @LastEditTime: 2025-07-10 23:41:17
+ * @LastEditTime: 2025-07-14 23:00:37
  * @LastEditors: FunctionSir
  * @Description: -
  * @FilePath: /bouncy-printing-service/main.go
@@ -139,8 +139,7 @@ func main() {
 	watcher, err := fsnotify.NewWatcher()
 	Check(err)
 	defer watcher.Close()
-	err = watcher.Add(Options["ManagedDir"])
-	Check(err)
+	Check(watcher.Add(Options["ManagedDir"]))
 	for {
 		select {
 		case event, ok := <-watcher.Events:
@@ -156,14 +155,21 @@ func main() {
 					continue
 				}
 				thisTask := fmt.Sprintf("%s-%d", Options["ManagedDir"], time.Now().UnixNano())
+				Check(watcher.Remove(Options["ManagedDir"]))
 				err = os.Rename(Options["ManagedDir"], thisTask)
 				if err != nil {
 					log.Println("Can not create a new task:", err.Error())
+					Check(watcher.Add(Options["ManagedDir"]))
 					continue
 				}
-				os.Mkdir(Options["ManagedDir"], os.ModePerm)
+				Check(os.Mkdir(Options["ManagedDir"], os.ModePerm))
+				Check(watcher.Add(Options["ManagedDir"]))
 				log.Println("New task:", thisTask)
 				go doTask(thisTask)
+			} else if event.Op == fsnotify.Remove && event.Name == Options["ManagedDir"] {
+				Check(watcher.Remove(Options["ManagedDir"]))
+				Check(os.Mkdir(Options["ManagedDir"], os.ModePerm))
+				Check(watcher.Add(Options["ManagedDir"]))
 			}
 		case err, ok := <-watcher.Errors:
 			if !ok {
